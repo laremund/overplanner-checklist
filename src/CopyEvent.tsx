@@ -1,4 +1,4 @@
-export default function ContextMenu() {
+export default function CopyEvent() {
 
     return (
         <>
