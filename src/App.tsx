@@ -1,21 +1,13 @@
-import CalendarBlock from './CalendarBlock.tsx';
 import CalendarDayView from './CalendarDayView.tsx';
-import TimelineContextMenu from './TimelineContextMenu.tsx';
-import EventContextMenu from './EventContextMenu.tsx';
-import EventView from './EventView.tsx';
-
 import './App.css'
 
 function App() {
-
   return (
-    <>
-      <CalendarBlock/>
-      <CalendarDayView/>
-      <TimelineContextMenu/>
-      <EventContextMenu/>
-      <EventView/>
-    </>
+    <main className="flex min-h-screen flex-col items-center justify-center bg-black text-white">
+      <div className="w-full max-w-6xl">
+        <CalendarDayView />
+      </div>
+    </main>
   )
 }
 
