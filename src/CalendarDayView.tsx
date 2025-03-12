@@ -5,22 +5,24 @@ import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import { ChevronLeft, ChevronRight, Plus, Calendar, Trash, Copy, Edit, Check, X } from "lucide-react"
 
-// Update the event type to include a date property
-// Add this type definition at the top of the file, after the imports
+// Event POJO (Maybe POTO would be a better acronym?)
 type CalendarEvent = {
   id: number
   title: string
   start: number
   end: number
   notes: string
-  date: string // Store date in ISO format (YYYY-MM-DD)
-  completed: boolean // Add this property
+  date: string // Date in ISO format (YYYY-MM-DD)
+  completed: boolean
 }
 
 export default function CalendarDayView() {
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 2, 3)) // March 3, 2025
+  const [currentDate, setCurrentDate] = useState(new Date(2025, 2, 3)) // Test day is March 3, 2025 for now
 
-  // Current time state (will be updated in real-time)
+/* -------------------------------------------------------------------------- */
+/*                      Current Time, Update Current Time                     */
+/* -------------------------------------------------------------------------- */
+  // Current time state (initially whenever the program is executed)
   const [currentTime, setCurrentTime] = useState(() => {
     const now = new Date()
     return {
@@ -29,7 +31,30 @@ export default function CalendarDayView() {
     }
   })
 
-  // Update the events state to use the new type and include dates
+  // Updates current time state (every minute)
+  useEffect(() => {
+    // Creates function to update current time
+    const updateCurrentTime = () => {
+      const now = new Date()
+      setCurrentTime({
+        hour: now.getHours(),
+        minute: now.getMinutes(),
+      })
+    }
+
+    // Executes function to update current time
+    updateCurrentTime()
+
+    // Set up interval to update every minute
+    const intervalId = setInterval(updateCurrentTime, 60000)
+
+    // Clean up interval on unmount
+    return () => clearInterval(intervalId)
+  }, [])
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
+  // REMOVE FOR FINAL PRODUCT, Creates a test event to start with when the app starts
   const [events, setEvents] = useState<CalendarEvent[]>([
     {
       id: 1,
@@ -42,7 +67,12 @@ export default function CalendarDayView() {
     },
   ])
 
-  // Timeline context menu state
+/* -------------------------------------------------------------------------- */
+/*                                Context Menus                               */
+/* -------------------------------------------------------------------------- */
+
+/* -------------------------- Timeline Context Menu ------------------------- */
+  // State
   const [contextMenu, setContextMenu] = useState({
     visible: false,
     x: 0,
@@ -50,13 +80,164 @@ export default function CalendarDayView() {
     hour: 0,
   })
 
-  // Event context menu state
+  // Handle right click on timeline
+  const handleContextMenu = (e: React.MouseEvent, hour: number) => {
+    e.preventDefault()
+
+    // Calculate the minute based on the click position within the hour slot
+    const rect = e.currentTarget.getBoundingClientRect()
+    const relativeY = e.clientY - rect.top
+    const minute = Math.floor((relativeY / HOUR_HEIGHT) * 60)
+
+    setContextMenu({
+      visible: true,
+      x: e.clientX,
+      y: e.clientY,
+      hour: hour + minute / 60,
+    })
+
+    // Hide Event Context Menu if Timeline Context Menu is open
+    if (eventContextMenu.visible) {
+      setEventContextMenu({
+        ...eventContextMenu,
+        visible: false,
+      })
+    }
+  }
+
+  // Create Event
+  const handleCreateEvent = () => {
+    const startHour = Math.floor(contextMenu.hour)
+    const startMinute = Math.floor(((contextMenu.hour - startHour) * 60) / MINUTE_INTERVAL) * MINUTE_INTERVAL
+    const start = startHour + startMinute / 60
+    const end = start + 1
+
+    const newEventId = Date.now()
+    const newEvent = {
+      id: newEventId,
+      title: "New Event",
+      start,
+      end,
+      notes: "",
+      date: currentDate.toISOString().split("T")[0],
+      completed: false,
+    }
+
+    setEvents([...events, newEvent])
+    setSelectedEventId(newEventId)
+    setContextMenu({ ...contextMenu, visible: false })
+  }
+/* -------------------------------------------------------------------------- */
+
+/* --------------------------- Event Context Menu --------------------------- */
+  // State
   const [eventContextMenu, setEventContextMenu] = useState({
     visible: false,
     x: 0,
     y: 0,
     eventId: null as number | null,
   })
+
+  // Handle right click on event
+  const handleEventContextMenu = (e: React.MouseEvent, eventId: number) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    setSelectedEventId(eventId)
+    setEventContextMenu({
+      visible: true,
+      x: e.clientX,
+      y: e.clientY,
+      eventId,
+    })
+
+    // Hide Timeline Context Menu if Event Context Menu is open
+    if (contextMenu.visible) {
+      setContextMenu({
+        ...contextMenu,
+        visible: false,
+      })
+    }
+  }
+
+  // Duplicate Event
+  const handleDuplicateEvent = () => {
+    if (eventContextMenu.eventId === null) return
+
+    const eventToDuplicate = events.find((event) => event.id === eventContextMenu.eventId)
+    if (!eventToDuplicate) return
+
+    // Create a duplicate event 30 minutes later
+    const newStart = eventToDuplicate.start + 0.5
+    const newEnd = eventToDuplicate.end + 0.5
+    const newEventId = Date.now()
+
+    // Ensure the new event is within the 24-hour range
+    if (newEnd <= 24) {
+      const newEvent = {
+        id: newEventId,
+        title: `${eventToDuplicate.title} (Copy)`,
+        start: newStart,
+        end: newEnd,
+        notes: eventToDuplicate.notes,
+        date: eventToDuplicate.date,
+        completed: false, // Always start as not completed
+      }
+
+      setEvents([...events, newEvent])
+      setSelectedEventId(newEventId)
+    } else {
+      // If it would go past midnight, place it at the same time
+      const newEvent = {
+        id: newEventId,
+        title: `${eventToDuplicate.title} (Copy)`,
+        start: eventToDuplicate.start,
+        end: eventToDuplicate.end,
+        notes: eventToDuplicate.notes,
+        date: eventToDuplicate.date,
+        completed: false, // Always start as not completed
+      }
+
+      setEvents([...events, newEvent])
+      setSelectedEventId(newEventId)
+    }
+
+    setEventContextMenu({ ...eventContextMenu, visible: false })
+  }
+
+  // Delete Event
+  const handleDeleteEvent = () => {
+    if (eventContextMenu.eventId === null) return
+
+    setEvents(events.filter((event) => event.id !== eventContextMenu.eventId))
+    setEventContextMenu({ ...eventContextMenu, visible: false })
+
+    // If we deleted the selected event, select the first available event
+    if (selectedEventId === eventContextMenu.eventId) {
+      const remainingEvents = events.filter((event) => event.id !== eventContextMenu.eventId)
+      setSelectedEventId(remainingEvents.length > 0 ? remainingEvents[0].id : null)
+    }
+  }
+/* -------------------------------------------------------------------------- */
+
+  // Close context menus when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (contextMenu.visible) {
+        setContextMenu({ ...contextMenu, visible: false })
+      }
+      if (eventContextMenu.visible) {
+        setEventContextMenu({ ...eventContextMenu, visible: false })
+      }
+    }
+
+    document.addEventListener("click", handleClickOutside)
+    return () => {
+      document.removeEventListener("click", handleClickOutside)
+    }
+  }, [contextMenu, eventContextMenu])
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 
   // Drag state
   const [dragState, setDragState] = useState({
@@ -102,26 +283,6 @@ export default function CalendarDayView() {
   // Add a new state to track the selected event ID
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null)
 
-  // Update current time every minute
-  useEffect(() => {
-    const updateCurrentTime = () => {
-      const now = new Date()
-      setCurrentTime({
-        hour: now.getHours(),
-        minute: now.getMinutes(),
-      })
-    }
-
-    // Update immediately
-    updateCurrentTime()
-
-    // Set up interval to update every minute
-    const intervalId = setInterval(updateCurrentTime, 60000)
-
-    // Clean up interval on unmount
-    return () => clearInterval(intervalId)
-  }, [])
-
   // Auto-scroll to current time when component mounts
   useEffect(() => {
     if (timelineRef.current) {
@@ -129,135 +290,6 @@ export default function CalendarDayView() {
       timelineRef.current.scrollTop = Math.max(0, scrollPosition)
     }
   }, [currentTime.hour, currentTime.minute])
-
-  // Handle right click on timeline
-  const handleContextMenu = (e: React.MouseEvent, hour: number) => {
-    e.preventDefault()
-
-    // Calculate the minute based on the click position within the hour slot
-    const rect = e.currentTarget.getBoundingClientRect()
-    const relativeY = e.clientY - rect.top
-    const minute = Math.floor((relativeY / HOUR_HEIGHT) * 60)
-
-    setContextMenu({
-      visible: true,
-      x: e.clientX,
-      y: e.clientY,
-      hour: hour + minute / 60,
-    })
-
-    // Hide event context menu if it's open
-    if (eventContextMenu.visible) {
-      setEventContextMenu({
-        ...eventContextMenu,
-        visible: false,
-      })
-    }
-  }
-
-  // Handle right click on event
-  const handleEventContextMenu = (e: React.MouseEvent, eventId: number) => {
-    e.preventDefault()
-    e.stopPropagation()
-
-    setSelectedEventId(eventId)
-    setEventContextMenu({
-      visible: true,
-      x: e.clientX,
-      y: e.clientY,
-      eventId,
-    })
-
-    // Hide timeline context menu if it's open
-    if (contextMenu.visible) {
-      setContextMenu({
-        ...contextMenu,
-        visible: false,
-      })
-    }
-  }
-
-  // Update the handleCreateEvent function to include the current date
-  const handleCreateEvent = () => {
-    const startHour = Math.floor(contextMenu.hour)
-    const startMinute = Math.floor(((contextMenu.hour - startHour) * 60) / MINUTE_INTERVAL) * MINUTE_INTERVAL
-    const start = startHour + startMinute / 60
-    const end = start + 1
-
-    const newEventId = Date.now()
-    const newEvent = {
-      id: newEventId,
-      title: "New Event",
-      start,
-      end,
-      notes: "",
-      date: currentDate.toISOString().split("T")[0],
-      completed: false,
-    }
-
-    setEvents([...events, newEvent])
-    setSelectedEventId(newEventId)
-    setContextMenu({ ...contextMenu, visible: false })
-  }
-
-  // Handle deleting an event
-  const handleDeleteEvent = () => {
-    if (eventContextMenu.eventId === null) return
-
-    setEvents(events.filter((event) => event.id !== eventContextMenu.eventId))
-    setEventContextMenu({ ...eventContextMenu, visible: false })
-
-    // If we deleted the selected event, select the first available event
-    if (selectedEventId === eventContextMenu.eventId) {
-      const remainingEvents = events.filter((event) => event.id !== eventContextMenu.eventId)
-      setSelectedEventId(remainingEvents.length > 0 ? remainingEvents[0].id : null)
-    }
-  }
-
-  // Update the handleDuplicateEvent function to maintain the date
-  const handleDuplicateEvent = () => {
-    if (eventContextMenu.eventId === null) return
-
-    const eventToDuplicate = events.find((event) => event.id === eventContextMenu.eventId)
-    if (!eventToDuplicate) return
-
-    // Create a duplicate event 30 minutes later
-    const newStart = eventToDuplicate.start + 0.5
-    const newEnd = eventToDuplicate.end + 0.5
-    const newEventId = Date.now()
-
-    // Ensure the new event is within the 24-hour range
-    if (newEnd <= 24) {
-      const newEvent = {
-        id: newEventId,
-        title: `${eventToDuplicate.title} (Copy)`,
-        start: newStart,
-        end: newEnd,
-        notes: eventToDuplicate.notes,
-        date: eventToDuplicate.date,
-        completed: false, // Always start as not completed
-      }
-
-      setEvents([...events, newEvent])
-      setSelectedEventId(newEventId)
-    } else {
-      // If it would go past midnight, place it at the same time
-      const newEvent = {
-        id: newEventId,
-        title: `${eventToDuplicate.title} (Copy)`,
-        start: eventToDuplicate.start,
-        end: eventToDuplicate.end,
-        notes: eventToDuplicate.notes,
-        date: eventToDuplicate.date,
-        completed: false, // Always start as not completed
-      }
-
-      setEvents([...events, newEvent])
-      setSelectedEventId(newEventId)
-    }
-
-    setEventContextMenu({ ...eventContextMenu, visible: false })
-  }
 
   // Start dragging an event
   const startDrag = (e: React.MouseEvent, eventId: number) => {
@@ -429,23 +461,6 @@ export default function CalendarDayView() {
       window.removeEventListener("mouseup", handleMouseUp)
     }
   }, [dragState, resizeState, events])
-
-  // Close context menus when clicking outside
-  useEffect(() => {
-    const handleClickOutside = () => {
-      if (contextMenu.visible) {
-        setContextMenu({ ...contextMenu, visible: false })
-      }
-      if (eventContextMenu.visible) {
-        setEventContextMenu({ ...eventContextMenu, visible: false })
-      }
-    }
-
-    document.addEventListener("click", handleClickOutside)
-    return () => {
-      document.removeEventListener("click", handleClickOutside)
-    }
-  }, [contextMenu, eventContextMenu])
 
   // Generate calendar days for the mini calendar
   const generateCalendarDays = () => {
