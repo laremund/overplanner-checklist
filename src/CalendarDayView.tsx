@@ -54,7 +54,64 @@ export default function CalendarDayView() {
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
-  // REMOVE FOR FINAL PRODUCT, Creates a test event to start with when the app starts
+/* -------------------------------------------------------------------------- */
+/*                                  Timeline                                  */
+/* -------------------------------------------------------------------------- */
+  // Constants
+  const HOUR_HEIGHT = 80 // Height of each hour slot in pixels (increased by 1.25x)
+  const MINUTE_INTERVAL = 15 // Snap to 15-minute intervals
+  const MIN_EVENT_DURATION = 15 / 60 // Minimum event duration in hours (15 minutes)
+
+  // Generate time slots from 12 AM to 12 AM
+  const timeSlots = Array.from({ length: 24 }, (_, i) => i)
+
+  // Add a new state to track the selected event ID
+  const [selectedEventId, setSelectedEventId] = useState<number | null>(null)
+
+  // Auto-scroll to current time when component mounts
+  useEffect(() => {
+    if (timelineRef.current) {
+      const scrollPosition = (currentTime.hour + currentTime.minute / 60) * HOUR_HEIGHT - window.innerHeight / 2
+      timelineRef.current.scrollTop = Math.max(0, scrollPosition)
+    }
+  }, [currentTime.hour, currentTime.minute])
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
+/* -------------------------------------------------------------------------- */
+/*                                    Event                                   */
+/* -------------------------------------------------------------------------- */
+  // Drag state
+  const [dragState, setDragState] = useState({
+    isDragging: false,
+    eventId: null as number | null,
+    startY: 0,
+    originalStart: 0,
+    duration: 0,
+  })
+
+  // Resize state
+  const [resizeState, setResizeState] = useState({
+    isResizing: false,
+    eventId: null as number | null,
+    handle: "" as "top" | "bottom" | "",
+    startY: 0,
+    originalStart: 0,
+    originalEnd: 0,
+  })
+
+  const [editMode, setEditMode] = useState(false)
+  const [editingEvent, setEditingEvent] = useState<{
+    id: number | null
+    title: string
+    notes: string
+  }>({
+    id: null,
+    title: "",
+    notes: "",
+  })
+
+    // REMOVE FOR FINAL PRODUCT, Creates a test event to start with when the app starts
   const [events, setEvents] = useState<CalendarEvent[]>([
     {
       id: 1,
@@ -66,6 +123,45 @@ export default function CalendarDayView() {
       completed: false,
     },
   ])
+
+    // Start dragging an event
+  const startDrag = (e: React.MouseEvent, eventId: number) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    const event = events.find((ev) => ev.id === eventId)
+    if (!event) return
+
+    setSelectedEventId(eventId)
+    setDragState({
+      isDragging: true,
+      eventId,
+      startY: e.clientY,
+      originalStart: event.start,
+      duration: event.end - event.start,
+    })
+  }
+
+  // Start resizing an event
+  const startResize = (e: React.MouseEvent, eventId: number, handle: "top" | "bottom") => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    const event = events.find((ev) => ev.id === eventId)
+    if (!event) return
+
+    setSelectedEventId(eventId)
+    setResizeState({
+      isResizing: true,
+      eventId,
+      handle,
+      startY: e.clientY,
+      originalStart: event.start,
+      originalEnd: event.end,
+    })
+  }
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 
 /* -------------------------------------------------------------------------- */
 /*                                Context Menus                               */
@@ -239,94 +335,8 @@ export default function CalendarDayView() {
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
-  // Drag state
-  const [dragState, setDragState] = useState({
-    isDragging: false,
-    eventId: null as number | null,
-    startY: 0,
-    originalStart: 0,
-    duration: 0,
-  })
-
-  // Resize state
-  const [resizeState, setResizeState] = useState({
-    isResizing: false,
-    eventId: null as number | null,
-    handle: "" as "top" | "bottom" | "",
-    startY: 0,
-    originalStart: 0,
-    originalEnd: 0,
-  })
-
-  const [editMode, setEditMode] = useState(false)
-  const [editingEvent, setEditingEvent] = useState<{
-    id: number | null
-    title: string
-    notes: string
-  }>({
-    id: null,
-    title: "",
-    notes: "",
-  })
-
   // Refs
   const timelineRef = useRef<HTMLDivElement>(null)
-
-  // Constants
-  const HOUR_HEIGHT = 80 // Height of each hour slot in pixels (increased by 1.25x)
-  const MINUTE_INTERVAL = 15 // Snap to 15-minute intervals
-  const MIN_EVENT_DURATION = 15 / 60 // Minimum event duration in hours (15 minutes)
-
-  // Generate time slots from 12 AM to 12 AM
-  const timeSlots = Array.from({ length: 24 }, (_, i) => i)
-
-  // Add a new state to track the selected event ID
-  const [selectedEventId, setSelectedEventId] = useState<number | null>(null)
-
-  // Auto-scroll to current time when component mounts
-  useEffect(() => {
-    if (timelineRef.current) {
-      const scrollPosition = (currentTime.hour + currentTime.minute / 60) * HOUR_HEIGHT - window.innerHeight / 2
-      timelineRef.current.scrollTop = Math.max(0, scrollPosition)
-    }
-  }, [currentTime.hour, currentTime.minute])
-
-  // Start dragging an event
-  const startDrag = (e: React.MouseEvent, eventId: number) => {
-    e.preventDefault()
-    e.stopPropagation()
-
-    const event = events.find((ev) => ev.id === eventId)
-    if (!event) return
-
-    setSelectedEventId(eventId)
-    setDragState({
-      isDragging: true,
-      eventId,
-      startY: e.clientY,
-      originalStart: event.start,
-      duration: event.end - event.start,
-    })
-  }
-
-  // Start resizing an event
-  const startResize = (e: React.MouseEvent, eventId: number, handle: "top" | "bottom") => {
-    e.preventDefault()
-    e.stopPropagation()
-
-    const event = events.find((ev) => ev.id === eventId)
-    if (!event) return
-
-    setSelectedEventId(eventId)
-    setResizeState({
-      isResizing: true,
-      eventId,
-      handle,
-      startY: e.clientY,
-      originalStart: event.start,
-      originalEnd: event.end,
-    })
-  }
 
   // Handle mouse move during drag or resize
   useEffect(() => {
