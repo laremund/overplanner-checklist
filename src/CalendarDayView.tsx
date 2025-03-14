@@ -75,6 +75,43 @@ export default function CalendarDayView() {
       timelineRef.current.scrollTop = Math.max(0, scrollPosition)
     }
   }, [currentTime.hour, currentTime.minute])
+
+  // Format hour label on the timeline
+  const formatHourLabel = (hour: number) => {
+    if (hour === 0 || hour === 24) return "12 AM"
+    if (hour === 12) return "Noon"
+    return `${hour % 12 || 12} ${hour < 12 ? "AM" : "PM"}`
+  }
+
+  // Format time for display
+  const formatTime = (time: number) => {
+    const hour = Math.floor(time)
+    const minute = Math.round((time - hour) * 60)
+
+    let hourDisplay = hour
+    let ampm = "AM"
+
+    if (hour === 0) {
+      hourDisplay = 12
+    } else if (hour === 12) {
+      hourDisplay = 12
+      ampm = "PM"
+    } else if (hour > 12) {
+      hourDisplay = hour - 12
+      ampm = "PM"
+    }
+
+    if (minute === 0) {
+      return hour === 12 && ampm === "PM" ? "Noon" : `${hourDisplay} ${ampm}`
+    }
+
+    return `${hourDisplay}:${minute.toString().padStart(2, "0")} ${ampm}`
+  }
+
+  // Calculate current time position for the red line
+  const currentTimePosition = currentTime.hour + currentTime.minute / 60
+  const currentTimeFormatted = formatTime(currentTimePosition)
+  const currentTimeAmPm = currentTimeFormatted.includes("AM") ? "AM" : "PM"
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
@@ -335,6 +372,59 @@ export default function CalendarDayView() {
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
+/* -------------------------------------------------------------------------- */
+/*                                Mini Calendar                               */
+/* -------------------------------------------------------------------------- */
+  // Generate calendar days for the mini calendar
+  const generateCalendarDays = () => {
+    const year = currentDate.getFullYear()
+    const month = currentDate.getMonth()
+    const daysInMonth = new Date(year, month + 1, 0).getDate()
+    const firstDayOfMonth = new Date(year, month, 1).getDay()
+
+    // Get last few days of previous month to fill first week
+    const prevMonthDays = []
+    if (firstDayOfMonth > 0) {
+      const daysInPrevMonth = new Date(year, month, 0).getDate()
+      for (let i = daysInPrevMonth - firstDayOfMonth + 1; i <= daysInPrevMonth; i++) {
+        prevMonthDays.push({ day: i, currentMonth: false, isToday: false })
+      }
+    }
+
+    // Current month days
+    const currentMonthDays = []
+    for (let i = 1; i <= daysInMonth; i++) {
+      const isToday = i === currentDate.getDate()
+      currentMonthDays.push({ day: i, currentMonth: true, isToday })
+    }
+
+    // Next month days to fill last week
+    const totalDaysSoFar = prevMonthDays.length + currentMonthDays.length
+    const daysNeeded = Math.ceil(totalDaysSoFar / 7) * 7
+    const nextMonthDays = []
+    for (let i = 1; i <= daysNeeded - totalDaysSoFar; i++) {
+      nextMonthDays.push({ day: i, currentMonth: false, isToday: false })
+    }
+
+    return [...prevMonthDays, ...currentMonthDays, ...nextMonthDays]
+  }
+
+  // Update the handleDateSelection function to reset selectedEventId when changing dates
+  const handleDateSelection = (day, isCurrentMonth) => {
+    // If clicking on a day from previous or next month, we'd need to adjust the month
+    // For simplicity, we'll only allow selecting days from the current month for now
+    if (!isCurrentMonth) return
+
+    const newDate = new Date(currentDate)
+    newDate.setDate(day)
+    setCurrentDate(newDate)
+
+    // Reset selected event when changing dates
+    setSelectedEventId(null)
+  }
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
   // Refs
   const timelineRef = useRef<HTMLDivElement>(null)
 
@@ -472,86 +562,6 @@ export default function CalendarDayView() {
     }
   }, [dragState, resizeState, events])
 
-  // Generate calendar days for the mini calendar
-  const generateCalendarDays = () => {
-    const year = currentDate.getFullYear()
-    const month = currentDate.getMonth()
-    const daysInMonth = new Date(year, month + 1, 0).getDate()
-    const firstDayOfMonth = new Date(year, month, 1).getDay()
-
-    // Get last few days of previous month to fill first week
-    const prevMonthDays = []
-    if (firstDayOfMonth > 0) {
-      const daysInPrevMonth = new Date(year, month, 0).getDate()
-      for (let i = daysInPrevMonth - firstDayOfMonth + 1; i <= daysInPrevMonth; i++) {
-        prevMonthDays.push({ day: i, currentMonth: false, isToday: false })
-      }
-    }
-
-    // Current month days
-    const currentMonthDays = []
-    for (let i = 1; i <= daysInMonth; i++) {
-      const isToday = i === currentDate.getDate()
-      currentMonthDays.push({ day: i, currentMonth: true, isToday })
-    }
-
-    // Next month days to fill last week
-    const totalDaysSoFar = prevMonthDays.length + currentMonthDays.length
-    const daysNeeded = Math.ceil(totalDaysSoFar / 7) * 7
-    const nextMonthDays = []
-    for (let i = 1; i <= daysNeeded - totalDaysSoFar; i++) {
-      nextMonthDays.push({ day: i, currentMonth: false, isToday: false })
-    }
-
-    return [...prevMonthDays, ...currentMonthDays, ...nextMonthDays]
-  }
-
-  // Update the handleDateSelection function to reset selectedEventId when changing dates
-  const handleDateSelection = (day, isCurrentMonth) => {
-    // If clicking on a day from previous or next month, we'd need to adjust the month
-    // For simplicity, we'll only allow selecting days from the current month for now
-    if (!isCurrentMonth) return
-
-    const newDate = new Date(currentDate)
-    newDate.setDate(day)
-    setCurrentDate(newDate)
-
-    // Reset selected event when changing dates
-    setSelectedEventId(null)
-  }
-
-  // Format time for display
-  const formatTime = (time: number) => {
-    const hour = Math.floor(time)
-    const minute = Math.round((time - hour) * 60)
-
-    let hourDisplay = hour
-    let ampm = "AM"
-
-    if (hour === 0) {
-      hourDisplay = 12
-    } else if (hour === 12) {
-      hourDisplay = 12
-      ampm = "PM"
-    } else if (hour > 12) {
-      hourDisplay = hour - 12
-      ampm = "PM"
-    }
-
-    if (minute === 0) {
-      return hour === 12 && ampm === "PM" ? "Noon" : `${hourDisplay} ${ampm}`
-    }
-
-    return `${hourDisplay}:${minute.toString().padStart(2, "0")} ${ampm}`
-  }
-
-  // Format hour label on the timeline
-  const formatHourLabel = (hour: number) => {
-    if (hour === 0 || hour === 24) return "12 AM"
-    if (hour === 12) return "Noon"
-    return `${hour % 12 || 12} ${hour < 12 ? "AM" : "PM"}`
-  }
-
   // Format time range for display
   const formatTimeRange = (start: number, end: number) => {
     return `${formatTime(start)} to ${formatTime(end)}`
@@ -679,11 +689,6 @@ export default function CalendarDayView() {
   const selectedEvent = getSelectedEvent()
   const calendarDays = generateCalendarDays()
   const weekDays = ["S", "M", "T", "W", "T", "F", "S"]
-
-  // Calculate current time position for the red line
-  const currentTimePosition = currentTime.hour + currentTime.minute / 60
-  const currentTimeFormatted = formatTime(currentTimePosition)
-  const currentTimeAmPm = currentTimeFormatted.includes("AM") ? "AM" : "PM"
 
   return (
     <div className="flex h-screen bg-black text-white">
