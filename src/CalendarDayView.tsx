@@ -214,6 +214,29 @@ export default function CalendarDayView() {
       return `${durationHours}h ${durationMinutes}m`
     }
   }
+
+  // Add a function to toggle the completed status of an event
+  const toggleEventCompleted = (e: React.MouseEvent, eventId: number) => {
+    e.stopPropagation() // Prevent event selection
+
+    setEvents(
+      events.map((event) => {
+        if (event.id === eventId) {
+          return {
+            ...event,
+            completed: !event.completed,
+          }
+        }
+        return event
+      }),
+    )
+  }
+
+  // Check if an event is currently active
+  const isEventActive = (start: number, end: number) => {
+    const currentTimeDecimal = currentTime.hour + currentTime.minute / 60
+    return currentTimeDecimal >= start && currentTimeDecimal < end
+  }
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
@@ -353,6 +376,43 @@ export default function CalendarDayView() {
     }
 
     setEventContextMenu({ ...eventContextMenu, visible: false })
+  }
+
+  const startEventEdit = (event) => {
+    setEditMode(true)
+    setEditingEvent({
+      id: event.id,
+      title: event.title,
+      notes: event.notes || "",
+    })
+  }
+
+  const cancelEventEdit = () => {
+    setEditMode(false)
+    setEditingEvent({
+      id: null,
+      title: "",
+      notes: "",
+    })
+  }
+
+  const saveEventEdit = () => {
+    if (editingEvent.id === null) return
+
+    setEvents(
+      events.map((event) => {
+        if (event.id === editingEvent.id) {
+          return {
+            ...event,
+            title: editingEvent.title,
+            notes: editingEvent.notes,
+          }
+        }
+        return event
+      }),
+    )
+
+    setEditMode(false)
   }
 
   // Delete Event
@@ -551,8 +611,8 @@ export default function CalendarDayView() {
       }
     }
 
+    // Reset drag state
     const handleMouseUp = () => {
-      // Reset drag state
       if (dragState.isDragging) {
         setDragState({
           isDragging: false,
@@ -587,19 +647,13 @@ export default function CalendarDayView() {
     }
   }, [dragState, resizeState, events])
 
-  // Check if an event is currently active
-  const isEventActive = (start: number, end: number) => {
-    const currentTimeDecimal = currentTime.hour + currentTime.minute / 60
-    return currentTimeDecimal >= start && currentTimeDecimal < end
-  }
-
-  // Add a function to filter events for the current date
+  // Filter events for the current date
   const getEventsForCurrentDate = () => {
     const currentDateString = currentDate.toISOString().split("T")[0]
     return events.filter((event) => event.date === currentDateString)
   }
 
-  // Update the getSelectedEvent function to filter by current date
+  // Decides which event is selected, if one is
   const getSelectedEvent = () => {
     const currentDateEvents = getEventsForCurrentDate()
 
@@ -631,65 +685,11 @@ export default function CalendarDayView() {
     }
   }
 
-  const startEventEdit = (event) => {
-    setEditMode(true)
-    setEditingEvent({
-      id: event.id,
-      title: event.title,
-      notes: event.notes || "",
-    })
-  }
-
-  const cancelEventEdit = () => {
-    setEditMode(false)
-    setEditingEvent({
-      id: null,
-      title: "",
-      notes: "",
-    })
-  }
-
-  const saveEventEdit = () => {
-    if (editingEvent.id === null) return
-
-    setEvents(
-      events.map((event) => {
-        if (event.id === editingEvent.id) {
-          return {
-            ...event,
-            title: editingEvent.title,
-            notes: editingEvent.notes,
-          }
-        }
-        return event
-      }),
-    )
-
-    setEditMode(false)
-  }
-
   const handleInputChange = (field, value) => {
     setEditingEvent({
       ...editingEvent,
       [field]: value,
     })
-  }
-
-  // Add a function to toggle the completed status of an event
-  const toggleEventCompleted = (e: React.MouseEvent, eventId: number) => {
-    e.stopPropagation() // Prevent event selection
-
-    setEvents(
-      events.map((event) => {
-        if (event.id === eventId) {
-          return {
-            ...event,
-            completed: !event.completed,
-          }
-        }
-        return event
-      }),
-    )
   }
 
   const selectedEvent = getSelectedEvent()
