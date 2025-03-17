@@ -112,6 +112,9 @@ export default function CalendarDayView() {
   const currentTimePosition = currentTime.hour + currentTime.minute / 60
   const currentTimeFormatted = formatTime(currentTimePosition)
   const currentTimeAmPm = currentTimeFormatted.includes("AM") ? "AM" : "PM"
+
+  // Timeline Ref
+  const timelineRef = useRef<HTMLDivElement>(null)
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
@@ -196,6 +199,20 @@ export default function CalendarDayView() {
       originalStart: event.start,
       originalEnd: event.end,
     })
+  }
+
+  // Format event duration
+  const formatEventDuration = (start: number, end: number) => {
+    const durationHours = Math.floor(end - start)
+    const durationMinutes = Math.round((end - start - durationHours) * 60)
+
+    if (durationHours === 0) {
+      return `${durationMinutes}m`
+    } else if (durationMinutes === 0) {
+      return `${durationHours}h`
+    } else {
+      return `${durationHours}h ${durationMinutes}m`
+    }
   }
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
@@ -425,8 +442,16 @@ export default function CalendarDayView() {
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
-  // Refs
-  const timelineRef = useRef<HTMLDivElement>(null)
+/* -------------------------------------------------------------------------- */
+/*                                 Side Panel                                 */
+/* -------------------------------------------------------------------------- */
+    // Format time range for display
+  const formatTimeRange = (start: number, end: number) => {
+    return `${formatTime(start)} to ${formatTime(end)}`
+  }
+
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 
   // Handle mouse move during drag or resize
   useEffect(() => {
@@ -561,25 +586,6 @@ export default function CalendarDayView() {
       window.removeEventListener("mouseup", handleMouseUp)
     }
   }, [dragState, resizeState, events])
-
-  // Format time range for display
-  const formatTimeRange = (start: number, end: number) => {
-    return `${formatTime(start)} to ${formatTime(end)}`
-  }
-
-  // Format event duration
-  const formatEventDuration = (start: number, end: number) => {
-    const durationHours = Math.floor(end - start)
-    const durationMinutes = Math.round((end - start - durationHours) * 60)
-
-    if (durationHours === 0) {
-      return `${durationMinutes}m`
-    } else if (durationMinutes === 0) {
-      return `${durationHours}h`
-    } else {
-      return `${durationHours}h ${durationMinutes}m`
-    }
-  }
 
   // Check if an event is currently active
   const isEventActive = (start: number, end: number) => {
