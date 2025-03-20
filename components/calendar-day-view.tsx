@@ -698,13 +698,13 @@ export default function CalendarDayView() {
           <div className="mt-2 text-gray-500 text-sm border-b border-gray-700 pb-2">all-day</div>
         </div>
 
-        <div ref={timelineRef} className="relative overflow-y-auto h-[calc(100vh-100px)]">
+        <div ref={timelineRef} className="relative pr-10 overflow-y-auto h-[calc(100vh-100px)]">
           {/* Time slots */}
           {timeSlots.map((hour) => (
-            <div key={hour} className="relative" onContextMenu={(e) => handleContextMenu(e, hour)}>
-              <div className="absolute -top-2.5 left-12 text-xs text-gray-500">{formatHourLabel(hour)}</div>
-              <div className="h-20 border-t border-gray-700 mx-12"></div>
-            </div>
+              <div key={hour} className="relative" onContextMenu={(e) => handleContextMenu(e, hour)}>
+                <div className="absolute -top-2.5 left-12 text-xs text-gray-500">{formatHourLabel(hour)}</div>
+                <div className="relative left-10 right-5 h-20 border-t border-gray-700 mx-12"></div>
+              </div>
           ))}
 
           {/* Current time indicator - now dynamic */}
